@@ -1,4 +1,5 @@
 from re import finditer
+from random import choice
 
 secret_word = None
 old_letters_guessed = []
@@ -66,11 +67,10 @@ def check_win(secret_word, old_letters_guessed):
     Returns:
         bool: whether he guessed the right letters or not
     """
-    right_letters = []
-    for letter in old_letters_guessed:  # get every guess
-      if letter in secret_word: # check if there are correct letters
-         right_letters.append(letter)
-      if len(secret_word) == len(right_letters): return True
+    for letter in secret_word:  # every letter that makes up the word
+      if letter not in old_letters_guessed:  # still missing at least one letter
+        return False
+    return True
 
 
 def right_letters_index(secret_word, old_letters_guessed):
@@ -141,77 +141,76 @@ def try_update_letter_guessed(letter_guessed, old_letters_guessed):
       old_letters_guessed.append(letter_guessed)
 
 
-def choose_word(file_path, index):
+def choose_word(file_path):
     """this function choose a random word for the game from a file
 
     Args:
         file_path (str): words file
-        index (int): the word index to choose from the file
 
     Returns:
-        str:  the secret word
+        str:  the secret word, or False if the file is missing/empty
     """
     try:
-        with open(file_path, 'r') as words_file:  
-            words_lines = words_file.readlines() # get every line
-            words_list = " ".join(words_lines).split(" ")  # join the lines together and get every word into a list
-            word = words_list[int(index) % len(words_list) - 1] # get the word and make the index smaller than the number of words
-            return word
+        with open(file_path, 'r') as words_file:
+            words_list = words_file.read().split()  # every whitespace-separated word
     except FileNotFoundError:
-       print("Please enter an existing file")
-       return False
+        print(f"Could not find the words file: {file_path}")
+        return False
 
-    except ValueError:
-       print("Please enter a positive integer")
-       return False
+    if not words_list:
+        print(f"The words file is empty: {file_path}")
+        return False
+
+    return choice(words_list).lower()  # pick a random word
 
 
 def main():
     global num_of_tries
-    game_active = True
 
     openning_screen()
 
-    words_file = input("Please enter the words file: ")
-    index = input("Please enter an index(number): ")
+    play_again = True
+    while play_again:
+        # reset the game state for a fresh round
+        num_of_tries = 0
+        old_letters_guessed.clear()
 
-    secret_word = choose_word(words_file, index)
-    if secret_word == False:
-       return
-    
-    print("Let's start!\n" + HANGMAN_PHOTOS[0])
-    print(show_hidden_word(secret_word, old_letters_guessed))
-    
-    while game_active:
+        secret_word = choose_word("words.txt")
+        if secret_word is False:
+            return
 
-        if check_win(secret_word, old_letters_guessed):
-           print("WIN")
-           break
+        print("Let's start!\n" + HANGMAN_PHOTOS[0])
+        print(show_hidden_word(secret_word, old_letters_guessed))
 
-        elif num_of_tries == 6:
-           print("LOSE")
-           break
-           
+        while True:
 
-        guess = input("Enter your guess: ")
-        guess = guess.replace(" ", "")
-        guess = guess.lower()
+            if check_win(secret_word, old_letters_guessed):
+                print("WIN")
+                break
 
-        if check_valid_input(guess, old_letters_guessed):
-          try_update_letter_guessed(guess, old_letters_guessed)
-          if guess not in secret_word:
-            num_of_tries += 1
-            print(":(")
-            print(HANGMAN_PHOTOS[num_of_tries])
-            print(show_hidden_word(secret_word, old_letters_guessed))
-          elif guess in secret_word:
-             print(show_hidden_word(secret_word, old_letters_guessed))
-       
-        else:
-           try_update_letter_guessed(guess, old_letters_guessed)
-    game_active = False
-    play = input("Do you want to play again?(yes/no)")
-    if play == "yes":   game_active = True
+            elif num_of_tries == MAX_TRIES:
+                print("LOSE")
+                print(f"The word was: {secret_word}")
+                break
+
+            guess = input("Enter your guess: ")
+            guess = guess.replace(" ", "")
+            guess = guess.lower()
+
+            if check_valid_input(guess, old_letters_guessed):
+                try_update_letter_guessed(guess, old_letters_guessed)
+                if guess not in secret_word:
+                    num_of_tries += 1
+                    print(":(")
+                    print(HANGMAN_PHOTOS[num_of_tries])
+                print(show_hidden_word(secret_word, old_letters_guessed))
+            else:
+                try_update_letter_guessed(guess, old_letters_guessed)
+
+        answer = input("Do you want to play again?(yes/no) ").strip().lower()
+        play_again = answer in ("yes", "y")
+
+    print("Thanks for playing!")
 
         
 
